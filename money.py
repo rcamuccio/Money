@@ -5,7 +5,13 @@ import numpy as np
 class Money:
 
 	@staticmethod
-	def dte_to_jd(year, month, day):
+	def dte_to_jd(dte, fmt='%Y-%m-%d'):
+
+		dt = datetime.datetime.strptime(dte, fmt)
+
+		year = dt.year
+		month = dt.month
+		day = dt.day
 
 		if (month == 1) or (month == 2):
 			yearp = year - 1
@@ -32,58 +38,159 @@ class Money:
 		return jd
 
 	@staticmethod
-	def get_avg(chk_list, svg_list, tot_list):
+	def get_file_size(nme):
 
-		chk_array = np.asarray(chk_list)
-		svg_array = np.asarray(svg_list)
-		tot_array = np.asarray(tot_list)
+		with open(nme) as f:
+			nlines = sum(1 for _ in f)
 
-		chk_avg = np.mean(chk_array)
-		svg_avg = np.mean(svg_array)
-		tot_avg = np.mean(tot_array)
-
-		return chk_avg, svg_avg, tot_avg
-
-	@staticmethod
-	def get_cat():
-
-		file = open('cat.txt', 'r')
-
-		cat_list = []
-
-		for ln in file:
-			ln = ln.split()
-			cat_list.append(ln[0])
-
-		return cat_list
+		return nlines
 
 	@staticmethod
 	def get_ref_jd(year):
 
-		ref_jd = []
+		dte_list = []
+		for m in range(1, 13):
+			dte = year + '-' + str(m) + '-1'
+			dte_list.append(dte)
 
-		for month in range(1, 13):
-			jd = date_to_jd(year, month, 1)
-			ref_jd.append(jd)
+		jd_list = []
 
-		return ref_jd
+		for dte in dte_list:
+			jd = Money.dte_to_jd(dte)
+			jd_list.append(jd)
+
+		return jd_list
 
 	@staticmethod
-	def mke_plt(year, eod_jd_list, checking_list, savings_list, total_list):
+	def get_chk(nme, fmt='%Y-%m-%d'):
+
+		dte_list = []
+		chk_list = []
+
+		idx = 0
+
+		f = open(nme)
+
+		for ln in f:
+			ln = ln.split()
+
+			acc = ln[0]
+			if acc == 'Checking':
+
+				dte = ln[1]
+				jd = Money.dte_to_jd(dte)
+				dte_list.append(jd)
+
+				chk = float(ln[4])
+				chk_list.append(chk)
+
+				idx += 1
+
+		chk_mean = np.mean(chk_list)
+
+		f.close()
+
+		return idx, dte_list, chk_list, chk_mean
+
+	@staticmethod
+	def get_svg(nme, dte_i, dte_f, fmt='%Y-%m-%d'):
+
+		dte_i_jd = Money.dte_to_jd(dte_i)
+		dte_f_jd = Money.dte_to_jd(dte_f)
+
+		dte_list = []
+		svg_list = []
+
+		f = open(nme)
+
+		for ln in f:
+			ln = ln.split()
+
+			acc = ln[0]
+			if acc == 'Savings':
+
+				dte = ln[1]
+				jd = Money.dte_to_jd(dte)
+				dte_list.append(jd)
+
+				svg = float(ln[5])
+				svg_list.append(svg)
+
+				idx += 1
+
+		svg_mean = np.mean(svg_list)
+
+		f.close()
+
+		return idx, dte_list, svg_list, svg_mean
+
+	@staticmethod
+	def get_eod(nme, dte_i, dte_f, fmt='%Y-%m-%d'):
+		''' This function reads a data file containing bank account transactions and returns a list of unique dates along with the corresponding end-of-day net, checking, savings, and total balance.
+
+		:parameter nme [str] - The path of the data file
+		:parameter dte_i [str] - The initial date in yyyy-mm-dd format
+		:parameter dte_f [str] - The final date in in yyyy-mm-dd format
+		:parameter fmt [str] - The format of the date supplied
+
+		:return dte_list [list, float] - A list of unique Julian dates
+		:return chk_list [list, float] - A list of checking balances
+		:return svg_list [list, float] - A list of savings balances
+		:return tot_list [list, float] - A list of total account balances
+		'''
+
+		dte_i_jd = Money.dte_to_jd(dte_i)
+		dte_f_jd = Money.dte_to_jd(dte_f)
+
+		dte_list = []
+		chk_list = []
+		svg_list = []
+		tot_list = []
+
+		f = open(nme)
+
+		for ln in f:
+			ln = ln.split()
+
+			acc = ln[0]
+			if acc == 'Transfer':
+				pass
+
+			dte = ln[1]
+			dte_jd = Money.dte_to_jd(dte)
+			if (dte_jd < dte_i_jd) | (dte_jd > dte_f_jd):
+				pass
+
+			eod = ln[3]
+			if eod == 'n/a':
+				pass
+
+			else:
+				dte_list.append(dte_jd)
+
+				chk = float(ln[4])
+				chk_list.append(chk)
+
+				svg = float(ln[5])
+				svg_list.append(svg)
+
+				tot = float(ln[6])
+				tot_list.append(tot)
+
+		f.close()
+
+		return dte_list, chk_list, svg_list, tot_list
+
+	@staticmethod
+	def plt_eod(year, dte_list, chk_list, svg_list, tot_list):
 
 		plt.figure(figsize=(10,10))
 
-		plt.plot(eod_jd_list, total_list, color='blue', label='Total')
-		plt.plot(eod_jd_list, checking_list, color='green', label='Checking')
-		plt.plot(eod_jd_list, savings_list, color='red', label='Savings')
+		plt.plot(dte_list, tot_list, color='blue', label='Total')
+		plt.plot(dte_list, chk_list, color='green', label='Checking')
+		plt.plot(dte_list, svg_list, color='red', label='Savings')
 
-		checking_avg, savings_avg, total_avg = calculate_mean(checking_list, savings_list, total_list)
-
-		plt.axhline(y=total_avg, xmin=0, xmax=eod_jd_list[-1], linestyle='dotted', color='blue')
-		plt.axhline(y=checking_avg, xmin=0, xmax=eod_jd_list[-1], linestyle='dotted', color='green')
-		plt.axhline(y=savings_avg, xmin=0, xmax=eod_jd_list[-1], linestyle='dotted', color='red')
-
-		ref_jd_list = reference_jd(year)
+		ref_jd_list = Money.get_ref_jd(year)
 		for date in ref_jd_list:
 			plt.axvline(x=date, ymin=0, ymax=10000, linestyle='dotted', linewidth=0.5, color='gray')
 
@@ -94,64 +201,11 @@ class Money:
 
 		plt.savefig(str(year) + '.png', dpi=400)
 
-		return
-
-	@staticmethod
-	def get_data(nme, cat):
-
-		file = open(nme, 'r')
-
-		eod_list = []
-		chk_list = []
-		svg_list = []
-		tot_list = []
-
-		cat_tot = 0
-
-		dte_fmt = '%Y-%m-%d'
-
-		for ln in file:
-			ln = ln.split()
-
-			if ln[0] == 'Account':
-				pass
-
-			elif ln[3] == 'n/a':
-				pass
-
-			else:
-				eod = ln[1]
-				eod_dt = datetime.datetime.strptime(eod, dte_fmt)
-				eod_jd = Money.dte_to_jd(eod_dt.year, eod_dt.month, eod_dt.day)
-				eod_jd = float(eod_jd)
-				eod_list.append(eod_jd)
-
-				chk = ln[4]
-				chk = float(chk)
-				chk_list.append(chk)
-
-				svg = ln[5]
-				svg = float(svg)
-				svg_list.append(svg)
-
-				tot = ln[6]
-				tot = float(tot)
-				tot_list.append(tot)
-
-				if ln[7] == cat:
-					amt = ln[2]
-					amt = float(amt)
-					amt = abs(amt)
-					cat_tot += amt
-
-		return eod_list, chk_list, svg_list, tot_list, cat_tot
-
 if __name__ == '__main__':
 
-	year = 2025
-	category = 'Food'
-	filename = str(year) + '.txt'
+	year = '2025'
+	filename = 'data.txt'
 
-	eod_list, chk_list, svg_list, tot_list, cat_tot = Money.get_data(filename, category)
-
-	Money.mke_plt(year, eod_list, chk_list, svg_list, tot_list)
+	dte_list, chk_list, svg_list, tot_list = Money.get_eod(filename, dte_i='2025-01-01', dte_f='2025-12-31')
+	
+	Money.plt_eod(year, dte_list, chk_list, svg_list, tot_list)
